@@ -74,7 +74,7 @@ class QaModule():
                 "max_answer_length": 64,
             }
             self.mrqaFLAGS = namedtuple("FLAGS", d.keys())(*d.values())
-            return tf.contrib.predictor.from_saved_model("/home/xuyan/mrqa/xlnet-qa/experiment/multiqa-1e-5-tpu/1564469515")
+            return tf.contrib.predictor.from_saved_model("/kaggle/input/pretrained-qa-models/mrqa/1564469515")
         elif model_name == 'biobert':
             d = {
                 "version_2_with_negative": False,
@@ -93,7 +93,7 @@ class QaModule():
                 "max_answer_length": 30,
             }
             self.bioFLAGS = namedtuple("FLAGS", d.keys())(*d.values())
-            return tf.contrib.predictor.from_saved_model("/home/xuyan/kaggle/bioasq-biobert/model/1585470591")
+            return tf.contrib.predictor.from_saved_model("/kaggle/input/pretrained-qa-models/biobert/1585470591")
         else:
             raise ValueError("invalid model name")
 
