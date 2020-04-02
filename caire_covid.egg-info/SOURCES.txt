@@ -5,6 +5,13 @@ caire-covid/main.py
 caire-covid/qa.py
 caire-covid/retrieval.py
 caire-covid/test_api.py
+caire-covid/biobert/__init__.py
+caire-covid/biobert/modeling.py
+caire-covid/biobert/optimization.py
+caire-covid/biobert/predictor_biobert.py
+caire-covid/biobert/run_factoid.py
+caire-covid/biobert/save_biobert.py
+caire-covid/biobert/tokenization.py
 caire-covid/mrqa/__init__.py
 caire-covid/mrqa/data_utils.py
 caire-covid/mrqa/function_builder.py
