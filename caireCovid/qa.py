@@ -130,6 +130,8 @@ class QaModule():
             title = qa["qas"][0]["title"] 
 
             answers[-1]["data"]["context"].append(context)
+            answers[-1]["data"]["doi"].append(doi)
+            answers[-1]["data"]["title"].append(title)
 
             sents = sent_tokenize(context)
             spans = self.convert_idx(context, sents)

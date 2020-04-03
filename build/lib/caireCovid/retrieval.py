@@ -33,7 +33,7 @@ def information_retrieval(file_name):
                 "data": 
                 {
                     "answer": "",
-                    "context": [paragraph1, paragraph2, ...],
+                    "context": ['paragraph1', 'paragraph2', ],
                 }
             }]
     """
