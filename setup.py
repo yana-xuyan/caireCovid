@@ -4,8 +4,8 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="caire-covid",
-    version="0.0.1",
+    name="caireCovid",
+    version="0.0.6",
     author="yana",
     author_email="yxucb1229@gmail.com",
     description="system for covid-19.",
