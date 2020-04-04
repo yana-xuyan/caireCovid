@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="caireCovid",
-    version="0.0.1",
+    version="0.0.5",
     author="Yan Xu",
     author_email="yxucb1229@gmail.com",
     description="system for covid-19.",
@@ -20,16 +20,15 @@ setuptools.setup(
     ],
     install_requires=[
         "numpy",
-        "collections",
-        "copy",
-        "json",
+        "unidecode",
         "six",
         # for downloading models over HTTPS
         "requests",
         # progress bars in model download and training scripts
-        "tqdm >= 4.27",
+        "tqdm",
         # for XLNet
         "sentencepiece",
+        "jsonlines",
     ],
     python_requires='>=3.6',
 )
