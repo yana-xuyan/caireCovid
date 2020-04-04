@@ -1,5 +1,5 @@
 # caire-covid
-<img src="img/tensorflow.png" width="15%"> [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<img src="img/tensorflow.png" width="13%"> [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 <img align="right" src="img/HKUST.jpg" width="15%">
 Kaggle system for covid 19
