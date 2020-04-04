@@ -80,6 +80,7 @@ class QaModule():
                 "max_answer_length": 64,
             }
             self.mrqaFLAGS = namedtuple("FLAGS", d.keys())(*d.values())
+            # load saved MRQA model
             return tf.contrib.predictor.from_saved_model(modelpath)
         elif model_name == 'biobert':
             d = {
@@ -99,6 +100,7 @@ class QaModule():
                 "max_answer_length": 30,
             }
             self.bioFLAGS = namedtuple("FLAGS", d.keys())(*d.values())
+            # load saved BioBERT model
             return tf.contrib.predictor.from_saved_model(modelpath)
         else:
             raise ValueError("invalid model name")
