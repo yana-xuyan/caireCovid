@@ -1,4 +1,4 @@
-# caire-covid
+# caireCovid system
 <img src="img/tensorflow.png" width="12%"> [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 <img align="right" src="img/HKUST.jpg" width="15%">
