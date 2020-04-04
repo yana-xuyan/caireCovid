@@ -716,7 +716,7 @@ def get_predictions(all_examples, all_features, all_results, n_best_size,
 
     assert best_non_null_entry is not None
 
-    all_predictions[example.qas_id] = best_non_null_entry.text
+    all_predictions[example.qas_id] = (best_non_null_entry.text, best_non_null_entry.start_log_prob + best_non_null_entry.end_log_prob)
 
   return all_predictions
 

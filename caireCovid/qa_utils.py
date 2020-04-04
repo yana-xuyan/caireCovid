@@ -127,6 +127,10 @@ class QaModule():
         for qa in qas:
             question = qa["qas"][0]["question"]
             if len(answers)==0 or answers[-1]["question"]!=question:
+                if len(answers) > 0:
+                    scores = answers[-1]["data"]["confidence"]
+                    answers[-1]["data"]["confidence"] = self._compute_softmax(scores)
+                    print()
                 answer_sample = {}
                 answer_sample["question"] = question
                 answer_sample["data"] = {
@@ -134,6 +138,8 @@ class QaModule():
                     "context": [],
                     "title": [],
                     "doi": [],
+                    "confidence": [],
+                    "raw": [],
                 }
                 answers.append(answer_sample)
 
@@ -151,10 +157,13 @@ class QaModule():
             if "mrqa" in self.model_name:
                 raw_mrqa = self.mrqaPredictor([qa])
                 # get sentence from MRQA
-                raw = raw_mrqa[qa["qas"][0]["id"]]            
+                raw = raw_mrqa[qa["qas"][0]["id"]]   
+                raw_answer_mrqa = raw[0]
+                raw_score_mrqa = raw[1]  
+
                 # question answering one by one
-                answer_start = context.find(raw, 0)
-                answer_end = answer_start + len(raw)
+                answer_start = context.find(raw_answer_mrqa, 0)
+                answer_end = answer_start + len(raw_answer_mrqa)
                 answer_span = []
                 for idx, span in enumerate(spans):
                     if not (answer_end <= span[0] or answer_start >= span[1]):
@@ -167,7 +176,7 @@ class QaModule():
                     answer_sent_mrqa = " ".join(sents[y1:y2+1])
                 else:
                     answer_sent_mrqa = sents[y1]
-                assert raw in answer_sent_mrqa
+                assert raw_answer_mrqa in answer_sent_mrqa
             else:
                 answer_sent_mrqa = ""
             
@@ -176,12 +185,16 @@ class QaModule():
                 raw_bio = self.biobertPredictor([qa])
                 # get sentence from BioBERT
                 raw = raw_bio[qa["qas"][0]["id"]]
-                if raw == "empty" or "":
+                raw_answer_bio = raw[0]
+                raw_score_bio = raw[1] 
+
+                if raw_answer_bio == "empty" or "":
                     answer_sent_bio = ""
+                    raw_score_bio = 0
                 else:
                     # question answering one by one
-                    answer_start = context.find(raw, 0)
-                    answer_end = answer_start + len(raw)
+                    answer_start = context.find(raw_answer_bio, 0)
+                    answer_end = answer_start + len(raw_answer_bio)
                     answer_span = []
                     for idx, span in enumerate(spans):
                         if not (answer_end <= span[0] or answer_start >= span[1]):
@@ -198,7 +211,7 @@ class QaModule():
                     # if raw not in answer_sent_bio:
                     #     print("RAW", raw)
                     #     print("BIO", answer_sent_bio)
-                    assert raw in answer_sent_bio
+                    assert raw_answer_bio in answer_sent_bio
             else:
                 answer_sent_bio = ""
 
@@ -212,8 +225,42 @@ class QaModule():
                 # print("DIFFERENT ANSWERS")
                 answer_sent= " ".join([answer_sent_mrqa, answer_sent_bio])
             
+            if raw_answer_mrqa == raw_answer_bio or raw_answer_mrqa in raw_answer_bio:
+                # print("SAME OR QA < BIO")
+                answer = [raw_answer_bio]
+            elif raw_answer_bio in raw_answer_mrqa:
+                # print("BIO < QA")
+                answer = [answer_sent_mrqa]
+            else:
+                # print("DIFFERENT ANSWERS")
+                answer = [raw_answer_mrqa, raw_answer_bio]
+            
             answers[-1]["data"]["answer"].append(answer_sent)
+            answers[-1]["data"]["raw"].append(answer)
+            answers[-1]["data"]["confidence"].append(raw_score_mrqa+raw_score_bio)
         return answers
+    
+    def _compute_softmax(self, scores):
+        """Compute softmax probability over scores."""
+        if not scores:
+            return []
+
+        max_score = None
+        for score in scores:
+            if max_score is None or score > max_score:
+                max_score = score
+
+        exp_scores = []
+        total_sum = 0.0
+        for score in scores:
+            x = math.exp(score - max_score)
+            exp_scores.append(x)
+            total_sum += x
+
+        probs = []
+        for score in exp_scores:
+            probs.append(score / total_sum)
+        return probs
     
     def convert_idx(self, text, tokens):
         current = 0
