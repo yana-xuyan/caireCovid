@@ -3,11 +3,13 @@ import sys
 
 import json
 from retrieval import information_retrieval
-from qa import QaModule, print_answers_in_file
+from caireCovid import QaModule, print_answers_in_file
 
 all_results, data_for_qa = information_retrieval("question_generation/task1_question.json")
 
-qa_model = QaModule(["mrqa", "biobert"])
+qa_model = QaModule(["mrqa", "biobert"], ["/home/xuyan/mrqa/xlnet-qa/experiment/multiqa-1e-5-tpu/1564469515", "/home/xuyan/kaggle/bioasq-biobert/model/1585470591"], \
+    "./mrqa/model/spiece.model", "./biobert/model/bert_config.json", "./biobert/model/vocab.txt"
+)
 
 answers = qa_model.getAnswers(data_for_qa)
 
