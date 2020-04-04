@@ -1,17 +1,19 @@
 # coding=utf-8
-# Copyright 2018 The Google AI Language Team Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Taken from BioBERT https://github.com/dmis-lab/bioasq-biobert
+# @article{yoon2019pre,
+#   title={Pre-trained Language Model for Biomedical Question Answering},
+#   author={Yoon, Wonjin and Lee, Jinhyuk and Kim, Donghyeon and Jeong, Minbyul and Kang, Jaewoo},
+#   journal={arXiv preprint arXiv:1909.08229},
+#   year={2019}
+# }
+# @article{lee2019biobert,
+#   title={BioBERT: a pre-trained biomedical language representation model for biomedical text mining},
+#   author={Lee, Jinhyuk and Yoon, Wonjin and Kim, Sungdong and Kim, Donghyeon and Kim, Sunkyu and So, Chan Ho and Kang, Jaewoo},
+#   doi = {10.1093/bioinformatics/btz682}, 
+#   journal={Bioinformatics},
+#   year={2019}
+# }
+
 """Tokenization classes."""
 
 from __future__ import absolute_import
@@ -23,57 +25,6 @@ import re
 import unicodedata
 import six
 import tensorflow as tf
-
-
-def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
-  """Checks whether the casing config is consistent with the checkpoint name."""
-
-  # The casing has to be passed in by the user and there is no explicit check
-  # as to whether it matches the checkpoint. The casing information probably
-  # should have been stored in the bert_config.json file, but it's not, so
-  # we have to heuristically detect it to validate.
-
-  if not init_checkpoint:
-    return
-
-  m = re.match("^.*?([A-Za-z0-9_-]+)/bert_model.ckpt", init_checkpoint)
-  if m is None:
-    return
-
-  model_name = m.group(1)
-
-  lower_models = [
-      "uncased_L-24_H-1024_A-16", "uncased_L-12_H-768_A-12",
-      "multilingual_L-12_H-768_A-12", "chinese_L-12_H-768_A-12"
-  ]
-
-  cased_models = [
-      "cased_L-12_H-768_A-12", "cased_L-24_H-1024_A-16",
-      "multi_cased_L-12_H-768_A-12"
-  ]
-
-  is_bad_config = False
-  if model_name in lower_models and not do_lower_case:
-    is_bad_config = True
-    actual_flag = "False"
-    case_name = "lowercased"
-    opposite_flag = "True"
-
-  if model_name in cased_models and do_lower_case:
-    is_bad_config = True
-    actual_flag = "True"
-    case_name = "cased"
-    opposite_flag = "False"
-
-  if is_bad_config:
-    raise ValueError(
-        "You passed in `--do_lower_case=%s` with `--init_checkpoint=%s`. "
-        "However, `%s` seems to be a %s model, so you "
-        "should pass in `--do_lower_case=%s` so that the fine-tuning matches "
-        "how the model was pre-training. If this error is wrong, please "
-        "just comment out this check." % (actual_flag, init_checkpoint,
-                                          model_name, case_name, opposite_flag))
-
 
 def convert_to_unicode(text):
   """Converts `text` to Unicode (if it's not already), assuming utf-8 input."""

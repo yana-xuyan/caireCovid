@@ -1,4 +1,6 @@
 # coding=utf-8
+# Partially taken from XLNet https://github.com/zihangdai/xlnet
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function

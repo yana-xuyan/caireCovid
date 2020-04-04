@@ -1,17 +1,19 @@
 # coding=utf-8
-# Copyright 2018 The Google AI Language Team Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Taken from BioBERT https://github.com/dmis-lab/bioasq-biobert
+# @article{yoon2019pre,
+#   title={Pre-trained Language Model for Biomedical Question Answering},
+#   author={Yoon, Wonjin and Lee, Jinhyuk and Kim, Donghyeon and Jeong, Minbyul and Kang, Jaewoo},
+#   journal={arXiv preprint arXiv:1909.08229},
+#   year={2019}
+# }
+# @article{lee2019biobert,
+#   title={BioBERT: a pre-trained biomedical language representation model for biomedical text mining},
+#   author={Lee, Jinhyuk and Yoon, Wonjin and Kim, Sungdong and Kim, Donghyeon and Kim, Sunkyu and So, Chan Ho and Kang, Jaewoo},
+#   doi = {10.1093/bioinformatics/btz682}, 
+#   journal={Bioinformatics},
+#   year={2019}
+# }
+
 """Run BERT on SQuAD 1.1 and SQuAD 2.0."""
 
 from __future__ import absolute_import
@@ -23,8 +25,7 @@ import json
 import math
 import os
 import random
-from .modeling import (BertConfig, BertModel, get_shape_list, get_assignment_map_from_checkpoint)
-from .optimization import (create_optimizer)
+from .modeling import (BertConfig)
 from .tokenization import (printable_text, whitespace_tokenize, BasicTokenizer, FullTokenizer)
 import six
 import tensorflow as tf
@@ -444,153 +445,6 @@ def _check_is_max_context(doc_spans, cur_span_index, position):
   return cur_span_index == best_span_index
 
 
-def create_model(bert_config, is_training, input_ids, input_mask, segment_ids,
-                 use_one_hot_embeddings):
-  """Creates a classification model."""
-  model = BertModel(
-      config=bert_config,
-      is_training=is_training,
-      input_ids=input_ids,
-      input_mask=input_mask,
-      token_type_ids=segment_ids,
-      use_one_hot_embeddings=use_one_hot_embeddings)
-
-  final_hidden = model.get_sequence_output()
-
-  final_hidden_shape = get_shape_list(final_hidden, expected_rank=3)
-  batch_size = final_hidden_shape[0]
-  seq_length = final_hidden_shape[1]
-  hidden_size = final_hidden_shape[2]
-
-  output_weights = tf.get_variable(
-      "cls/squad/output_weights", [2, hidden_size],
-      initializer=tf.truncated_normal_initializer(stddev=0.02))
-
-  output_bias = tf.get_variable(
-      "cls/squad/output_bias", [2], initializer=tf.zeros_initializer())
-
-  final_hidden_matrix = tf.reshape(final_hidden,
-                                   [batch_size * seq_length, hidden_size])
-  logits = tf.matmul(final_hidden_matrix, output_weights, transpose_b=True)
-  logits = tf.nn.bias_add(logits, output_bias)
-
-  logits = tf.reshape(logits, [batch_size, seq_length, 2])
-  logits = tf.transpose(logits, [2, 0, 1])
-
-  unstacked_logits = tf.unstack(logits, axis=0)
-
-  (start_logits, end_logits) = (unstacked_logits[0], unstacked_logits[1])
-
-  return (start_logits, end_logits)
-
-
-def model_fn_builder(bert_config, init_checkpoint, learning_rate,
-                     num_train_steps, num_warmup_steps, use_tpu,
-                     use_one_hot_embeddings):
-  """Returns `model_fn` closure for TPUEstimator."""
-
-  def model_fn(features, labels, mode, params):  # pylint: disable=unused-argument
-    """The `model_fn` for TPUEstimator."""
-
-    tf.logging.info("*** Features ***")
-    for name in sorted(features.keys()):
-      tf.logging.info("  name = %s, shape = %s" % (name, features[name].shape))
-
-    unique_ids = features["unique_ids"]
-    input_ids = features["input_ids"]
-    input_mask = features["input_mask"]
-    segment_ids = features["segment_ids"]
-
-    is_training = (mode == tf.estimator.ModeKeys.TRAIN)
-
-    (start_logits, end_logits) = create_model(
-        bert_config=bert_config,
-        is_training=is_training,
-        input_ids=input_ids,
-        input_mask=input_mask,
-        segment_ids=segment_ids,
-        use_one_hot_embeddings=use_one_hot_embeddings)
-
-    tvars = tf.trainable_variables()
-
-    initialized_variable_names = {}
-    scaffold_fn = None
-    if init_checkpoint:
-      (assignment_map, initialized_variable_names
-      ) = get_assignment_map_from_checkpoint(tvars, init_checkpoint)
-      if use_tpu:
-
-        def tpu_scaffold():
-          tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-          return tf.train.Scaffold()
-
-        scaffold_fn = tpu_scaffold
-      else:
-        tf.train.init_from_checkpoint(init_checkpoint, assignment_map)
-
-    tf.logging.info("**** Trainable Variables ****")
-    for var in tvars:
-      init_string = ""
-      if var.name in initialized_variable_names:
-        init_string = ", *INIT_FROM_CKPT*"
-      tf.logging.info("  name = %s, shape = %s%s", var.name, var.shape,
-                      init_string)
-
-    output_spec = None
-    if mode == tf.estimator.ModeKeys.TRAIN:
-      seq_length = get_shape_list(input_ids)[1]
-
-      def compute_loss(logits, positions):
-        one_hot_positions = tf.one_hot(
-            positions, depth=seq_length, dtype=tf.float32)
-        log_probs = tf.nn.log_softmax(logits, axis=-1)
-        loss = -tf.reduce_mean(
-            tf.reduce_sum(one_hot_positions * log_probs, axis=-1))
-        return loss
-
-      start_positions = features["start_positions"]
-      end_positions = features["end_positions"]
-
-      start_loss = compute_loss(start_logits, start_positions)
-      end_loss = compute_loss(end_logits, end_positions)
-
-      total_loss = (start_loss + end_loss) / 2.0
-
-      train_op = create_optimizer(
-          total_loss, learning_rate, num_train_steps, num_warmup_steps, use_tpu)
-
-      if use_tpu:
-        output_spec = tf.contrib.tpu.TPUEstimatorSpec(
-            mode=mode,
-            loss=total_loss,
-            train_op=train_op,
-            scaffold_fn=scaffold_fn)
-      else:
-        output_spec = tf.estimator.EstimatorSpec(
-            mode=mode, loss=total_loss, train_op=train_op)
-        
-    elif mode == tf.estimator.ModeKeys.PREDICT:
-      predictions = {
-          "unique_ids": unique_ids,
-          "start_logits": start_logits,
-          "end_logits": end_logits,
-      }
-      if use_tpu:
-        output_spec = tf.contrib.tpu.TPUEstimatorSpec(
-            mode=mode, predictions=predictions, scaffold_fn=scaffold_fn)
-      else:
-        output_spec = tf.estimator.EstimatorSpec(
-            mode=mode, predictions=predictions)
-        
-    else:
-      raise ValueError(
-          "Only TRAIN and PREDICT modes are supported: %s" % (mode))
-
-    return output_spec
-
-  return model_fn
-
-
 def input_fn_builder(input_file, seq_length, is_training, drop_remainder):
   """Creates an `input_fn` closure to be passed to TPUEstimator."""
 
@@ -950,10 +804,8 @@ class FeatureWriter(object):
   """Writes InputFeature to TF example file."""
 
   def __init__(self, is_training):
-    # self.filename = filename
     self.is_training = is_training
     self.num_features = 0
-    # self._writer = tf.python_io.TFRecordWriter(filename)
 
   def process_feature(self, feature):
     """Write a InputFeature to the TFRecordWriter as a tf.train.Example."""
@@ -980,28 +832,10 @@ class FeatureWriter(object):
 
     tf_example = tf.train.Example(features=tf.train.Features(feature=features))
     return tf_example.SerializeToString()
-  #   self._writer.write(tf_example.SerializeToString())
-
-  # def close(self):
-  #   self._writer.close()
 
 
 def validate_flags_or_throw(FLAGS, bert_config):
   """Validate the input FLAGS or throw an exception."""
-  # tokenization.validate_case_matches_checkpoint(FLAGS.do_lower_case,
-  #                                               FLAGS.init_checkpoint)
-
-  # if not FLAGS.do_train and not FLAGS.do_predict:
-  #   raise ValueError("At least one of `do_train` or `do_predict` must be True.")
-
-  # if FLAGS.do_train:
-  #   if not FLAGS.train_file:
-  #     raise ValueError(
-  #         "If `do_train` is True, then `train_file` must be specified.")
-  # if FLAGS.do_predict:
-  #   if not FLAGS.predict_file:
-  #     raise ValueError(
-  #         "If `do_predict` is True, then `predict_file` must be specified.")
 
   if FLAGS.max_seq_length > bert_config.max_position_embeddings:
     raise ValueError(
