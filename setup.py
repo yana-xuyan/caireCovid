@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="caireCovid",
-    version="0.0.5",
+    version="0.0.6",
     author="Yan Xu",
     author_email="yxucb1229@gmail.com",
     description="system for covid-19.",
@@ -29,6 +29,8 @@ setuptools.setup(
         # for XLNet
         "sentencepiece",
         "jsonlines",
+        # for QA sentence split
+        "nltk",
     ],
     python_requires='>=3.6',
 )
