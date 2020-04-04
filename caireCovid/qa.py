@@ -9,10 +9,14 @@ from .biobert.predictor_biobert import biobert_predictor
 
 
 class QaModule():
-    def __init__(self, model_name):
+    def __init__(self, model_name, model_path, spiece_model, bert_config, bert_vocab):
         # init QA models
         self.model_name = model_name
-        self.predict_fn = self.getPredictors()
+        self.model_path = model_path
+        self.spiece_model = spiece_model
+        self.bert_config = bert_config
+        self.bert_vocab = bert_vocab
+        self.getPredictors()
 
     def readIR(self, data):
         synthetic = []
@@ -38,6 +42,7 @@ class QaModule():
                     "doi": doi,
                     "title": title,
                 }
+
                 data_sample["qas"].append(qas_item)
                 synthetic.append(data_sample)
 
@@ -57,6 +62,7 @@ class QaModule():
             self.bio_predict_fn = self.getPredictor("biobert")
 
     def getPredictor(self, model_name):
+        modelpath = self.getModelPath(model_name)
         if model_name == 'mrqa':
             d = {
                 "uncased": False,
@@ -66,7 +72,7 @@ class QaModule():
                 "train_batch_size": 1,
                 "predict_batch_size": 1,
                 "shuffle_buffer": 2048,
-                "spiece_model_file": "./mrqa/model/spiece.model",
+                "spiece_model_file": self.spiece_model,
                 "max_seq_length": 512,
                 "doc_stride": 128,
                 "max_query_length": 64,
@@ -74,7 +80,7 @@ class QaModule():
                 "max_answer_length": 64,
             }
             self.mrqaFLAGS = namedtuple("FLAGS", d.keys())(*d.values())
-            return tf.contrib.predictor.from_saved_model("/kaggle/input/pretrained-qa-models/mrqa/1564469515")
+            return tf.contrib.predictor.from_saved_model(modelpath)
         elif model_name == 'biobert':
             d = {
                 "version_2_with_negative": False,
@@ -82,8 +88,8 @@ class QaModule():
                 "verbose_logging": False,
                 "init_checkpoint": None,
                 "do_lower_case": False,
-                "bert_config_file": "./biobert/model/bert_config.json",
-                "vocab_file": "./biobert/model/vocab.txt",
+                "bert_config_file": self.bert_config,
+                "vocab_file": self.bert_vocab,
                 "train_batch_size": 1,
                 "predict_batch_size": 1,
                 "max_seq_length": 384,
@@ -93,9 +99,13 @@ class QaModule():
                 "max_answer_length": 30,
             }
             self.bioFLAGS = namedtuple("FLAGS", d.keys())(*d.values())
-            return tf.contrib.predictor.from_saved_model("/kaggle/input/pretrained-qa-models/biobert/1585470591")
+            return tf.contrib.predictor.from_saved_model(modelpath)
         else:
             raise ValueError("invalid model name")
+    
+    def getModelPath(self, model_name):
+        index = self.model_name.index(model_name)
+        return self.model_path[index]
 
     def getAnswers(self, data):
         """
@@ -163,27 +173,30 @@ class QaModule():
             if "biobert" in self.model_name:
                 raw_bio = self.biobertPredictor([qa])
                 # get sentence from BioBERT
-                raw = raw_bio[qa["qas"][0]["id"]]            
-                # question answering one by one
-                answer_start = context.find(raw, 0)
-                answer_end = answer_start + len(raw)
-                answer_span = []
-                for idx, span in enumerate(spans):
-                    if not (answer_end <= span[0] or answer_start >= span[1]):
-                        answer_span.append(idx)
-
-                y1, y2 = answer_span[0], answer_span[-1]
-                if not y1 == y2:
-                    # context tokens in index y1 and y2 should be merged together
-                    # print("Merge knowledge sentence")
-                    answer_sent_bio = " ".join(sents[y1:y2+1])
+                raw = raw_bio[qa["qas"][0]["id"]]
+                if raw == "empty" or "":
+                    answer_sent_bio = ""
                 else:
-                    answer_sent_bio = sents[y1]
-                
-                # if raw not in answer_sent_bio:
-                #     print("RAW", raw)
-                #     print("BIO", answer_sent_bio)
-                # assert raw in answer_sent_bio
+                    # question answering one by one
+                    answer_start = context.find(raw, 0)
+                    answer_end = answer_start + len(raw)
+                    answer_span = []
+                    for idx, span in enumerate(spans):
+                        if not (answer_end <= span[0] or answer_start >= span[1]):
+                            answer_span.append(idx)
+
+                    y1, y2 = answer_span[0], answer_span[-1]
+                    if not y1 == y2:
+                        # context tokens in index y1 and y2 should be merged together
+                        # print("Merge knowledge sentence")
+                        answer_sent_bio = " ".join(sents[y1:y2+1])
+                    else:
+                        answer_sent_bio = sents[y1]
+                    
+                    # if raw not in answer_sent_bio:
+                    #     print("RAW", raw)
+                    #     print("BIO", answer_sent_bio)
+                    assert raw in answer_sent_bio
             else:
                 answer_sent_bio = ""
 
@@ -198,15 +211,6 @@ class QaModule():
                 answer_sent= " ".join([answer_sent_mrqa, answer_sent_bio])
             
             answers[-1]["data"]["answer"].append(answer_sent)
-
-
-            # print("context:", context)
-            # print("-"*80)
-            # print("query:", question)
-            # print("-"*80)
-            # print("answer:", answer_sent)
-            # input()
-            # break
         return answers
     
     def convert_idx(self, text, tokens):
