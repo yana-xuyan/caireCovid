@@ -130,7 +130,7 @@ class QaModule():
                 if len(answers) > 0:
                     scores = answers[-1]["data"]["confidence"]
                     answers[-1]["data"]["confidence"] = self._compute_softmax(scores)
-                    print()
+
                 answer_sample = {}
                 answer_sample["question"] = question
                 answer_sample["data"] = {
@@ -218,12 +218,27 @@ class QaModule():
             if answer_sent_mrqa == answer_sent_bio or answer_sent_mrqa in answer_sent_bio:
                 # print("SAME OR QA < BIO")
                 answer_sent = answer_sent_bio
+                if raw_score_mrqa < 0 and raw_score_bio < 0:
+                    if abs(raw_score_mrqa) < abs(raw_score_bio):
+                        score = abs(raw_score_mrqa) * 0.5 + raw_score_bio
+                    else:
+                        score = raw_score_mrqa + abs(raw_score_bio) * 0.5
+                else:
+                    score = raw_score_mrqa + raw_score_bio * 1.5
             elif answer_sent_bio in answer_sent_mrqa:
                 # print("BIO < QA")
                 answer_sent = answer_sent_mrqa
+                if raw_score_mrqa < 0 and raw_score_bio < 0:
+                    if abs(raw_score_mrqa) < abs(raw_score_bio):
+                        score = abs(raw_score_mrqa) * 0.5 + raw_score_bio
+                    else:
+                        score = raw_score_mrqa + abs(raw_score_bio) * 0.5
+                else:
+                    score = raw_score_mrqa + raw_score_bio * 1.5
             else:
                 # print("DIFFERENT ANSWERS")
                 answer_sent= " ".join([answer_sent_mrqa, answer_sent_bio])
+                score = (0.35 * raw_score_mrqa + 0.65 * raw_score_bio) / 2
             
             if raw_answer_mrqa == raw_answer_bio or raw_answer_mrqa in raw_answer_bio:
                 # print("SAME OR QA < BIO")
@@ -237,7 +252,7 @@ class QaModule():
             
             answers[-1]["data"]["answer"].append(answer_sent)
             answers[-1]["data"]["raw"].append(answer)
-            answers[-1]["data"]["confidence"].append(raw_score_mrqa+raw_score_bio)
+            answers[-1]["data"]["confidence"].append(score)
         return answers
     
     def _compute_softmax(self, scores):
