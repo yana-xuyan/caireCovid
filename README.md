@@ -15,4 +15,15 @@ You can use our package by install with ```pip```
 pip install caireCovid
 ```
 ## Question Answering System
-In this system, we build QA modules by a ensemble of two QA models, which are BioBERT model which fine
+In this system, we build QA modules by a ensemble of two QA models, which are BioBERT model which fine-tuned on SQuAD, and MRQA model which is our submission to MRQA@EMNLP 2019.
+
+If you want to use our MRQA model in your work, please cite the following paper. The bibtex is listed below:
+<pre>
+@inproceedings{su2019generalizing,
+  title={Generalizing Question Answering System with Pre-trained Language Model Fine-tuning},
+  author={Su, Dan and Xu, Yan and Winata, Genta Indra and Xu, Peng and Kim, Hyeondey and Liu, Zihan and Fung, Pascale},
+  booktitle={Proceedings of the 2nd Workshop on Machine Reading for Question Answering},
+  pages={203--211},
+  year={2019}
+}
+</pre>
