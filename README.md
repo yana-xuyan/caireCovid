@@ -15,7 +15,7 @@ You can use our package by install with ```pip```
 pip install caireCovid
 ```
 ## Question Answering System
-In this system, we build QA modules by a ensemble of two QA models, which are BioBERT model which fine-tuned on SQuAD, and MRQA model which is our submission to MRQA@EMNLP 2019.
+In this system, we build QA modules by a ensemble of two QA models, which are [BioBERT](https://github.com/dmis-lab/bioasq-biobert) model which fine-tuned on SQuAD, and MRQA model which is our submission to MRQA@EMNLP 2019.
 
 If you want to use our MRQA model in your work, please cite the following paper. The bibtex is listed below:
 <pre>
