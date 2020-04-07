@@ -80,7 +80,6 @@ class QaModule():
                 "max_answer_length": 64,
             }
             self.mrqaFLAGS = namedtuple("FLAGS", d.keys())(*d.values())
-            # load saved MRQA model
             return tf.contrib.predictor.from_saved_model(modelpath)
         elif model_name == 'biobert':
             d = {
@@ -100,7 +99,6 @@ class QaModule():
                 "max_answer_length": 30,
             }
             self.bioFLAGS = namedtuple("FLAGS", d.keys())(*d.values())
-            # load saved BioBERT model
             return tf.contrib.predictor.from_saved_model(modelpath)
         else:
             raise ValueError("invalid model name")
@@ -159,7 +157,7 @@ class QaModule():
                 # get sentence from MRQA
                 raw = raw_mrqa[qa["qas"][0]["id"]]   
                 raw_answer_mrqa = raw[0]
-                raw_score_mrqa = raw[1]  
+                raw_score_mrqa = raw[1]
 
                 # question answering one by one
                 answer_start = context.find(raw_answer_mrqa, 0)
@@ -224,7 +222,7 @@ class QaModule():
                     else:
                         score = raw_score_mrqa + abs(raw_score_bio) * 0.5
                 else:
-                    score = raw_score_mrqa + raw_score_bio * 1.5
+                    score = raw_score_mrqa + raw_score_bio
             elif answer_sent_bio in answer_sent_mrqa:
                 # print("BIO < QA")
                 answer_sent = answer_sent_mrqa
@@ -234,11 +232,11 @@ class QaModule():
                     else:
                         score = raw_score_mrqa + abs(raw_score_bio) * 0.5
                 else:
-                    score = raw_score_mrqa + raw_score_bio * 1.5
+                    score = raw_score_mrqa + raw_score_bio
             else:
                 # print("DIFFERENT ANSWERS")
                 answer_sent= " ".join([answer_sent_mrqa, answer_sent_bio])
-                score = (0.35 * raw_score_mrqa + 0.65 * raw_score_bio) / 2
+                score = 0.5 * raw_score_mrqa + 0.5 * raw_score_bio
             
             if raw_answer_mrqa == raw_answer_bio or raw_answer_mrqa in raw_answer_bio:
                 # print("SAME OR QA < BIO")
@@ -253,6 +251,9 @@ class QaModule():
             answers[-1]["data"]["answer"].append(answer_sent)
             answers[-1]["data"]["raw"].append(answer)
             answers[-1]["data"]["confidence"].append(score)
+        
+        # rerank the answers
+        score_qa = get_rank_score(answers)
         return answers
     
     def _compute_softmax(self, scores):
@@ -316,7 +317,34 @@ def print_answers_in_file(answers, filepath="./answers.txt"):
                 f.write("answer: "+answer+"\n")
             f.write("="*80+"\n")
 
+def get_rank_score(qa_output):
+    queries = list(qa_output.keys())
+    for query in queries:
+        context = qa_output[query]['context']
+        qa_output[query]['matching_score'] = []
+        # make new query with only n. and adj.
+        tokens = word_tokenize(query.lower())
+        tokens = [word for word in tokens if word not in stop_words]
+        tagged = pos_tag(tokens)
+        query_token = [tag[0] for tag in tagged if 'NN' in tag[1] or 'JJ' in tag[1] or 'VB' in tag[1]]
 
-
+        for i in range(len(context)):
+            text = context[i].lower()
+            count = 0
+            text_words = word_tokenize(text)
+            for word in text_words:
+                if word in query_token:
+                    count += 1
+            
+            # matching_score = count/len(text_words)*10 if len(text_words)>50 else count/len(text_words)   # short sentence penalty
+            matching_score = count / (1 + math.exp(-len(text_words)+50)) / 5
+            qa_output[query]['matching_score'].append(matching_score)
+            qa_output[query]['rerank_score'].append(matching_score + qa_output[query]['confidence'][i])
+        
+        # sort QA results
+        c = list(zip(qa_output[query]['rerank_score'], qa_output[query]['context'], qa_output[query]['answer'], qa_output[query]['confidence'], qa_output[query]['doi'], qa_output[query]['title'], qa_output[query]['matching_score'], qa_output[query]['raw']))
+        c.sort(reverse = True)
+        qa_output[query]['rerank_score'], qa_output[query]['context'], qa_output[query]['answer'], qa_output[query]['confidence'], qa_output[query]['doi'], qa_output[query]['title'], qa_output[query]['matching_score'], qa_output[query]['raw'] = zip(*c)
+    return qa_output
 
     
