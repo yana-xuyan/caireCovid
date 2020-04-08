@@ -151,6 +151,9 @@ class QaModule():
 
             sents = sent_tokenize(context)
             spans = self.convert_idx(context, sents)
+            
+            raw_score_mrqa = 0
+            raw_score_bio = 0
 
             if "mrqa" in self.model_name:
                 raw_mrqa = self.mrqaPredictor([qa])
@@ -254,7 +257,7 @@ class QaModule():
         
         # rerank the answers
         score_qa = get_rank_score(answers)
-        return answers
+        return score_qa
     
     def _compute_softmax(self, scores):
         """Compute softmax probability over scores."""
@@ -318,10 +321,11 @@ def print_answers_in_file(answers, filepath="./answers.txt"):
             f.write("="*80+"\n")
 
 def get_rank_score(qa_output):
-    queries = list(qa_output.keys())
-    for query in queries:
-        context = qa_output[query]['context']
-        qa_output[query]['matching_score'] = []
+    for item in qa_output:
+        query = item["question"]
+        context = item['data']['context']
+        item['data']['matching_score'] = []
+        item['data']['rerank_score'] = []
         # make new query with only n. and adj.
         tokens = word_tokenize(query.lower())
         tokens = [word for word in tokens if word not in stop_words]
@@ -338,13 +342,14 @@ def get_rank_score(qa_output):
             
             # matching_score = count/len(text_words)*10 if len(text_words)>50 else count/len(text_words)   # short sentence penalty
             matching_score = count / (1 + math.exp(-len(text_words)+50)) / 5
-            qa_output[query]['matching_score'].append(matching_score)
-            qa_output[query]['rerank_score'].append(matching_score + qa_output[query]['confidence'][i])
+            item['data']['matching_score'].append(matching_score)
+            item['data']['rerank_score'].append(matching_score + item['data']['confidence'][i])
         
         # sort QA results
-        c = list(zip(qa_output[query]['rerank_score'], qa_output[query]['context'], qa_output[query]['answer'], qa_output[query]['confidence'], qa_output[query]['doi'], qa_output[query]['title'], qa_output[query]['matching_score'], qa_output[query]['raw']))
+        c = list(zip(item['data']['rerank_score'], item['data']['context'], item['data']['answer'], item['data']['confidence'], item['data']['doi'], item['data']['title'], item['data']['matching_score'], item['data']['raw']))
         c.sort(reverse = True)
-        qa_output[query]['rerank_score'], qa_output[query]['context'], qa_output[query]['answer'], qa_output[query]['confidence'], qa_output[query]['doi'], qa_output[query]['title'], qa_output[query]['matching_score'], qa_output[query]['raw'] = zip(*c)
+        item['data']['rerank_score'], item['data']['context'], item['data']['answer'], item['data']['confidence'], item['data']['doi'], item['data']['title'], item['data']['matching_score'], item['data']['raw'] = zip(*c)
     return qa_output
+
 
     
