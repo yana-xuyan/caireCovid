@@ -3,6 +3,7 @@ import sys
 from collections import namedtuple
 import tensorflow as tf
 from nltk.tokenize import sent_tokenize
+from nltk import word_tokenize, pos_tag
 
 from .mrqa.predictor_kaggle import mrqa_predictor
 from .biobert.predictor_biobert import biobert_predictor

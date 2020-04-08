@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="caireCovid",
-    version="0.1.1",
+    version="0.1.2",
     author="Yan Xu",
     author_email="yxucb1229@gmail.com",
     description="system for covid-19.",
